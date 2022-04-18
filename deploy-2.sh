@@ -1,17 +1,29 @@
+#!/bin/bash
+
+#
+# デプロイ後に Amplify 用の config を作成して commit / push します。
+# push 後に Amplify コンソールでアプリをビルドしてください。
+#
+
 set -x
 
-[ -z "$STACK_NAME" ] && echo "Please specify STACK_NAME environment variable" && exit 1;
-[ -z "$AWS_DEFAULT_REGION" ] && echo "Please specify AWS_DEFAULT_REGION environment variable" && exit 1;
-
-sam build --use-container
-sam deploy --guided --stack-name $STACK_NAME
-
 export AWS_COGNITO_REGION=$AWS_DEFAULT_REGION
+[ -z "$STACK_NAME" ] && echo "Please specify STACK_NAME environment variable" && exit 1;
+
 export AWS_USER_POOLS_WEB_CLIENT_ID=`aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='CognitoClientID'].OutputValue" --output text`
+[ -z "$AWS_USER_POOLS_WEB_CLIENT_ID" ] && echo "Can not retrive CognitoClientID." && exit 1;
+
 export API_BASE_URL=`aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='TodoFunctionApi'].OutputValue" --output text`
+[ -z "$API_BASE_URL" ] && echo "Can not retrive TodoFunctionApi." && exit 1;
+
 export STAGE_NAME_PARAM=`aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Parameters[?ParameterKey=='StageNameParam'].ParameterValue" --output text`
+[ -z "$STAGE_NAME_PARAM" ] && echo "Can not retrive StageNameParam." && exit 1;
+
 export COGNITO_HOSTED_DOMAIN=`aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='CognitoDomainName'].OutputValue" --output text`
+[ -z "$COGNITO_HOSTED_DOMAIN" ] && echo "Can not retrive CognitoDomainName." && exit 1;
+
 export REDIRECT_URL=`aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='AmplifyURL'].OutputValue" --output text`
+[ -z "$REDIRECT_URL" ] && echo "Can not retrive AmplifyURL." && exit 1;
 
 cp www/src/config.default.js www/src/config.js
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -31,3 +43,5 @@ fi
 git add www/src/config.js
 git commit -m 'Frontend config update'
 git push
+
+echo -e "\nBuild your application with the exploit console."
