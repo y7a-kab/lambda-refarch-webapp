@@ -149,3 +149,6 @@ Thumbs.db
 # Front end config and production build
 www/build
 .idea/
+
+# ykab add
+package-lock.json
