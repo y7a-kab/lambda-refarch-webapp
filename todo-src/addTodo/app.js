@@ -2,8 +2,18 @@
 // SPDX-License-Identifier: MIT-0
 
 // default imports
-const AWSXRay = require("aws-xray-sdk-core");
-const AWS = AWSXRay.captureAWS(require("aws-sdk"));
+// ykab ローカル実行用に更新
+let AWSXRay = null;
+let AWS = null;
+
+if (!process.env.AWS_SAM_LOCAL) {
+  AWSXRay = require("aws-xray-sdk-core");
+  AWS = AWSXRay.captureAWS(require("aws-sdk"));
+}
+else {
+  AWS = require("aws-sdk");
+}
+
 const { metricScope, Unit } = require("aws-embedded-metrics");
 const DDB = new AWS.DynamoDB({ apiVersion: "2012-10-08" });
 const { v1: uuidv1 } = require("uuid");
@@ -42,9 +52,18 @@ function getCognitoUsername(event) {
 }
 
 function addRecord(event) {
-  let usernameField = {
-    "cognito-username": getCognitoUsername(event),
-  };
+  // ykab ローカル実行用に更新
+  let usernameField = null;
+  if (!process.env.AWS_SAM_LOCAL) {
+    usernameField = {
+      "cognito-username": getCognitoUsername(event),
+    };
+  } 
+  else {
+    usernameField = {
+      "cognito-username": process.env.SAM_LOCAL_COGNITO_USERNAME,
+    };
+  }
 
   // auto generated date fields
   let dISO = new Date().toISOString();

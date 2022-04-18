@@ -2,10 +2,20 @@
 // SPDX-License-Identifier: MIT-0
 
 // default imports
-const AWSXRay = require("aws-xray-sdk-core");
-const AWS = AWSXRay.captureAWS(require("aws-sdk"));
+// ykab ローカル実行用に更新
+let AWSXRay = null;
+let AWS = null;
+
+if (!process.env.AWS_SAM_LOCAL) {
+  AWSXRay = require("aws-xray-sdk-core");
+  AWS = AWSXRay.captureAWS(require("aws-sdk"));
+}
+else {
+  AWS = require("aws-sdk");
+}
+
 const { metricScope, Unit } = require("aws-embedded-metrics");
-const DDB = new AWS.DynamoDB({ apiVersion: "2012-10-08" });
+// const DDB = new AWS.DynamoDB({ apiVersion: "2012-10-08" });
 
 // environment variables
 const { TABLE_NAME, ENDPOINT_OVERRIDE, REGION } = process.env;
@@ -30,10 +40,17 @@ const response = (statusCode, body, additionalHeaders) => ({
 
 // Get cognito username from claims
 function getCognitoUsername(event) {
-  let authHeader = event.requestContext.authorizer;
-  if (authHeader !== null) {
-    return authHeader.claims["cognito:username"];
+  // ykab ローカル実行用に更新
+  if (!process.env.AWS_SAM_LOCAL) {
+    let authHeader = event.requestContext.authorizer;
+    if (authHeader !== null) {
+      return authHeader.claims["cognito:username"];
+    }
   }
+  else {
+    return(process.env.SAM_LOCAL_COGNITO_USERNAME);
+  }
+  
   return null;
 }
 

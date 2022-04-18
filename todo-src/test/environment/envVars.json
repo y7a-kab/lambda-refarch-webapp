@@ -1,0 +1,32 @@
+{
+    "GetTodoFunction": {
+        "ENDPOINT_OVERRIDE": "http://host.docker.internal:8000",
+        "TABLE_NAME": "TodoTable",
+        "SAM_LOCAL_COGNITO_USERNAME": "alice@email-host.com"
+    },
+    "GetAllTodoFunction": {
+        "ENDPOINT_OVERRIDE": "http://host.docker.internal:8000",
+        "TABLE_NAME": "TodoTable",
+        "SAM_LOCAL_COGNITO_USERNAME": "alice@email-host.com"
+    },
+    "CompleteTodoFunction": {
+        "ENDPOINT_OVERRIDE": "http://host.docker.internal:8000",
+        "TABLE_NAME": "TodoTable",
+        "SAM_LOCAL_COGNITO_USERNAME": "alice@email-host.com"
+    },
+    "AddTodoFunction": {
+        "ENDPOINT_OVERRIDE": "http://host.docker.internal:8000",
+        "TABLE_NAME": "TodoTable",
+        "SAM_LOCAL_COGNITO_USERNAME": "alice@email-host.com"
+    },
+    "UpdateTodoFunction": {
+        "ENDPOINT_OVERRIDE": "http://host.docker.internal:8000",
+        "TABLE_NAME": "TodoTable",
+        "SAM_LOCAL_COGNITO_USERNAME": "alice@email-host.com"
+    },
+    "DeleteTodoFunction": {
+        "ENDPOINT_OVERRIDE": "http://host.docker.internal:8000",
+        "TABLE_NAME": "TodoTable",
+        "SAM_LOCAL_COGNITO_USERNAME": "alice@email-host.com"
+    }
+}

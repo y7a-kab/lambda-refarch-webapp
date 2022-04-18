@@ -1,0 +1,21 @@
+# ローカルテスト用の dynamodb local
+# 初回起動直後に data ディレクトリの所有権を変更してください。
+# docker-compose exec -u root dynamodb-local sh -c "chown -R dynamodblocal:dynamodblocal /home/dynamodblocal/data && ls -l /home/dynamodblocal"
+
+version: '3.8'
+
+services:
+  dynamodb-local:
+    # このイメージは ENTRYPOINT java です。
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    image: "amazon/dynamodb-local:latest"
+    container_name: dynamodb-local
+    ports:
+      - "8000:8000"
+    volumes:
+      - "dynamodb-local:/home/dynamodblocal/data"
+    working_dir: /home/dynamodblocal
+
+volumes:
+    dynamodb-local:
+        # name: dynamodb-local-data

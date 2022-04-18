@@ -2,8 +2,18 @@
 // SPDX-License-Identifier: MIT-0
 
 // default imports
-const AWSXRay = require("aws-xray-sdk-core");
-const AWS = AWSXRay.captureAWS(require("aws-sdk"));
+// ykab ローカル実行用に更新
+let AWSXRay = null;
+let AWS = null;
+
+if (!process.env.AWS_SAM_LOCAL) {
+  AWSXRay = require("aws-xray-sdk-core");
+  AWS = AWSXRay.captureAWS(require("aws-sdk"));
+}
+else {
+  AWS = require("aws-sdk");
+}
+
 const { metricScope, Unit } = require("aws-embedded-metrics");
 const DDB = new AWS.DynamoDB({ apiVersion: "2012-10-08" });
 
@@ -38,10 +48,17 @@ function isValidRequest(event) {
 }
 
 function getCognitoUsername(event) {
-  let authHeader = event.requestContext.authorizer;
-  if (authHeader !== null) {
-    return authHeader.claims["cognito:username"];
+  // ykab ローカル実行用に更新
+  if (!process.env.AWS_SAM_LOCAL) {
+    let authHeader = event.requestContext.authorizer;
+    if (authHeader !== null) {
+      return authHeader.claims["cognito:username"];
+    }
   }
+  else {
+    return(process.env.SAM_LOCAL_COGNITO_USERNAME);
+  }
+
   return null;
 }
 
@@ -63,7 +80,9 @@ exports.deleteToDoItem = metricScope((metrics) => async (event, context) => {
   metrics.putDimensions({ Service: "deleteTodo" });
   metrics.setProperty("RequestId", context.requestId);
 
-  if (!isValidRequest(context, event)) {
+  // if (!isValidRequest(context, event)) {
+  // ykab 引数間違い・・・
+  if (!isValidRequest(event)) {
     metrics.putMetric("Error", 1, Unit.Count);
     return response(400, { message: "Error: Invalid request" });
   }
