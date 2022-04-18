@@ -1,12 +1,83 @@
 {
+    // IntelliSense を使用して利用可能な属性を学べます。
+    // 既存の属性の説明をホバーして表示します。
+    // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-    {
-        "type": "chrome",
-        "request": "launch",
-        "name": "Launch Chrome",
-        "url": "http://localhost:8080",
-        "webRoot": "${workspaceFolder}"
-    }
+        {
+            "type": "node",
+            "request": "attach",
+            "name": "Attach to addTodo SAM CLI",
+            "address": "localhost",
+            "port": 5858,
+            "protocol": "inspector",
+            "localRoot": "${workspaceRoot}/todo-src/addTodo",
+            "remoteRoot": "/var/task",
+            "stopOnEntry": false,
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            // "program": "${workspaceFolder}/todo-src/addTodo/app.js"
+        },
+        {
+            "type": "node",
+            "request": "attach",
+            "name": "Attach to completeTodo SAM CLI",
+            "address": "localhost",
+            "port": 5858,
+            "protocol": "inspector",
+            "localRoot": "${workspaceRoot}/todo-src/completeTodo",
+            "remoteRoot": "/var/task",
+            "stopOnEntry": false,
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            // "program": "${workspaceFolder}/todo-src/completeTodo/app.js"
+        },
+        {
+            "type": "node",
+            "request": "attach",
+            "name": "Attach to deleteTodo SAM CLI",
+            "address": "localhost",
+            "port": 5858,
+            "protocol": "inspector",
+            "localRoot": "${workspaceRoot}/todo-src/deleteTodo",
+            "remoteRoot": "/var/task",
+            "stopOnEntry": false,
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            // "program": "${workspaceFolder}/todo-src/deleteTodo/app.js"
+        },
+        {
+            "type": "node",
+            "request": "attach",
+            "name": "Attach to getAllTodo SAM CLI",
+            "address": "localhost",
+            "port": 5858,
+            "protocol": "inspector",
+            "localRoot": "${workspaceRoot}/todo-src/getAllTodo",
+            "remoteRoot": "/var/task",
+            "stopOnEntry": false,
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            // "program": "${workspaceFolder}/todo-src/getAllTodo/app.js"
+        },
+        {
+            "type": "node",
+            "request": "attach",
+            "name": "Attach to getTodo SAM CLI",
+            "address": "localhost",
+            "port": 5858,
+            "protocol": "inspector",
+            "localRoot": "${workspaceRoot}/todo-src/getTodo",
+            "remoteRoot": "/var/task",
+            "stopOnEntry": false,
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            // "program": "${workspaceFolder}/todo-src/getTodo/app.js"
+        },
     ]
 }
