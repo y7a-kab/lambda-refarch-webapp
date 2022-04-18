@@ -52,41 +52,63 @@ Parameters:
     NoEcho: true
 
 Resources:
-  # Cognito User Pool
-  TodoUserPool:
-    Type: AWS::Cognito::UserPool
+  # API Gateway to push execution and access logs to CloudWatch logs role
+  # See below. But please note that MethodSettings of AWS::Serverless::API 
+  # should be written directly under API, not under Properties.
+  # https://docs.aws.amazon.com/ja_jp/prescriptive-guidance/latest/patterns/automate-deployment-of-nested-applications-using-aws-sam.html
+  # https://serverless-observability.workshop.aws/en/050_logging/logging-producers/api_logs.html
+  ApiGatewayPushToCloudWatchLogsRole:
+    Type: "AWS::IAM::Role"
     Properties:
-      AdminCreateUserConfig:
-        AllowAdminCreateUserOnly: false
-      UserPoolName: TodoUsers
-      UsernameAttributes:
-      - email
-      AutoVerifiedAttributes:
-      - email
-      Policies:
-        PasswordPolicy:
-          MinimumLength: 6
-          RequireLowercase: true
-          RequireNumbers: false
-          RequireSymbols: false
-          RequireUppercase: true
-  TodoUserPoolTokenClient:
-    Type: AWS::Cognito::UserPoolClient
+      Description: "Push logs to CloudWatch logs from API Gateway"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "apigateway.amazonaws.com"
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+  ApiGatewayAccount:
+    Type: 'AWS::ApiGateway::Account'
     Properties:
-      UserPoolId: !Ref TodoUserPool
-      GenerateSecret: false
-      AllowedOAuthFlowsUserPoolClient: true
-      AllowedOAuthFlows: ['code', 'implicit']
-      CallbackURLs: [!Join ['', ['https://', !GetAtt AmplifyBranch.BranchName, '.', !GetAtt AmplifyApp.DefaultDomain]], 'http://localhost:3000', 'http://localhost:8080' ,'https://localhost']
-      SupportedIdentityProviders: ['COGNITO']
-      AllowedOAuthScopes: ['phone', 'email', 'openid']
-      ExplicitAuthFlows:
-      - USER_PASSWORD_AUTH
-  TodoDomain:
-    Type: AWS::Cognito::UserPoolDomain
-    Properties: 
-      Domain: !Join ['-', [!Ref CognitoDomainName, !Ref AWS::StackName]]
-      UserPoolId: !Ref TodoUserPool
+      CloudWatchRoleArn: !GetAtt ApiGatewayPushToCloudWatchLogsRole.Arn
+  # API Gateway Access Log Group
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/AccessLog-${TodoApi}
+      RetentionInDays: 365
+  # API Gateway
+  TodoApi:
+    Type: AWS::Serverless::Api
+    DependsOn:
+      - ApiGatewayAccount
+    MethodSettings:
+      DataTraceEnabled: true
+      MetricsEnabled: true
+      HttpMethod: '*'
+      # ResourcePath: !Sub '/${VersionParam}/*' は効いていない
+      ResourcePath: '/*'
+      LoggingLevel: INFO
+    Properties:
+      Name: TodoApi
+      StageName: !Ref StageNameParam
+      TracingEnabled: true
+      # Move under Properties
+      AccessLogSetting:
+        DestinationArn: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${ApiAccessLogGroup}'
+        Format: '$context.identity.sourceIp $context.authorizer.claims.sub [$context.requestTime] "$context.httpMethod $context.resourcePath $context.protocol" $context.status $context.requestId $context.awsEndpointRequestId $context.xrayTraceId $context.responseLatency $context.integrationLatency "$context.error.message"'
+      Cors:
+        AllowOrigin: "'*'"
+        AllowMethods: "'OPTIONS,HEAD,GET,PUT,POST,DELETE'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt "TodoUserPool.Arn"
   # DynamoDB
   TodoTable:
     Type: AWS::DynamoDB::Table
@@ -107,53 +129,6 @@ Resources:
           WriteCapacityUnits: 5                  
       SSESpecification:
         SSEEnabled: true
-  # API Gateway to push execution and access logs to CloudWatch logs role
-  ApiGatewayPushToCloudWatchLogsRole:
-    Type: "AWS::IAM::Role"
-    Properties:
-      Description: "Push logs to CloudWatch logs from API Gateway"
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - "apigateway.amazonaws.com"
-            Action: "sts:AssumeRole"
-      ManagedPolicyArns:
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
-  # API Gateway Access Log Group
-  ApiAccessLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/apigateway/AccessLog-${TodoApi}
-      RetentionInDays: 365
-  # API Gateway
-  TodoApi:
-    Type: AWS::Serverless::Api
-    MethodSettings:
-        DataTraceEnabled: true
-        MetricsEnabled: true
-        HttpMethod: '*'
-        # ResourcePath: !Sub '/${VersionParam}/*' は効いていない
-        ResourcePath: '/*'
-        LoggingLevel: INFO
-    Properties:
-      Name: TodoApi
-      StageName: !Ref StageNameParam
-      TracingEnabled: true
-      # Move under Properties
-      AccessLogSetting:
-        DestinationArn: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${ApiAccessLogGroup}'
-        Format: '$context.identity.sourceIp $context.authorizer.claims.sub [$context.requestTime] "$context.httpMethod $context.resourcePath $context.protocol" $context.status $context.requestId $context.awsEndpointRequestId $context.xrayTraceId $context.responseLatency $context.integrationLatency "$context.error.message"'
-      Cors:
-        AllowOrigin: "'*'"
-        AllowMethods: "'OPTIONS,HEAD,GET,PUT,POST,DELETE'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-      Auth:
-        Authorizers:
-          CognitoAuthorizer:
-            UserPoolArn: !GetAtt "TodoUserPool.Arn"
   # Functions
   GetTodoFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
@@ -368,6 +343,41 @@ Resources:
           Value: todo-amplify-console
         - Key: Branch
           Value: !Ref Branch
+  # Cognito User Pool
+  TodoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      UserPoolName: TodoUsers
+      UsernameAttributes:
+      - email
+      AutoVerifiedAttributes:
+      - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 6
+          RequireLowercase: true
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: true
+  TodoUserPoolTokenClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref TodoUserPool
+      GenerateSecret: false
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: ['code', 'implicit']
+      CallbackURLs: [!Join ['', ['https://', !GetAtt AmplifyBranch.BranchName, '.', !GetAtt AmplifyApp.DefaultDomain]], 'http://localhost:3000', 'http://localhost:8080' ,'https://localhost']
+      SupportedIdentityProviders: ['COGNITO']
+      AllowedOAuthScopes: ['phone', 'email', 'openid']
+      ExplicitAuthFlows:
+      - USER_PASSWORD_AUTH
+  TodoDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties: 
+      Domain: !Join ['-', [!Ref CognitoDomainName, !Ref AWS::StackName]]
+      UserPoolId: !Ref TodoUserPool
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
