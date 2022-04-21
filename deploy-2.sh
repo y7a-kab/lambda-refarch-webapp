@@ -7,7 +7,7 @@
 
 set -x
 
-export AWS_COGNITO_REGION=$AWS_DEFAULT_REGION
+# export AWS_COGNITO_REGION=$AWS_DEFAULT_REGION
 [ -z "$STACK_NAME" ] && echo "Please specify STACK_NAME environment variable" && exit 1;
 
 export AWS_USER_POOLS_WEB_CLIENT_ID=`aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='CognitoClientID'].OutputValue" --output text`
@@ -16,8 +16,8 @@ export AWS_USER_POOLS_WEB_CLIENT_ID=`aws cloudformation describe-stacks --stack-
 export API_BASE_URL=`aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='TodoFunctionApi'].OutputValue" --output text`
 [ -z "$API_BASE_URL" ] && echo "Can not retrive TodoFunctionApi." && exit 1;
 
-export STAGE_NAME_PARAM=`aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Parameters[?ParameterKey=='StageNameParam'].ParameterValue" --output text`
-[ -z "$STAGE_NAME_PARAM" ] && echo "Can not retrive StageNameParam." && exit 1;
+export STAGE_NAME_PARAM=`aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Parameters[?ParameterKey=='APIGatewayStageName'].ParameterValue" --output text`
+[ -z "$STAGE_NAME_PARAM" ] && echo "Can not retrive APIGatewayStageName." && exit 1;
 
 export COGNITO_HOSTED_DOMAIN=`aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='CognitoDomainName'].OutputValue" --output text`
 [ -z "$COGNITO_HOSTED_DOMAIN" ] && echo "Can not retrive CognitoDomainName." && exit 1;
@@ -29,16 +29,19 @@ cp www/src/config.default.js www/src/config.js
 if [[ "$OSTYPE" == "darwin"* ]]; then
   sed -i '' -e 's/AWS_USER_POOLS_WEB_CLIENT_ID/'"$AWS_USER_POOLS_WEB_CLIENT_ID"'/g' www/src/config.js
   sed -i '' -e 's/API_BASE_URL/'"${API_BASE_URL//\//\\/}"'/g' www/src/config.js
-  sed -i '' -e 's/{StageNameParam}/'"$STAGE_NAME_PARAM"'/g' www/src/config.js
+  sed -i '' -e 's/{APIGatewayStageName}/'"$STAGE_NAME_PARAM"'/g' www/src/config.js
   sed -i '' -e 's/COGNITO_HOSTED_DOMAIN/'"$COGNITO_HOSTED_DOMAIN"'/g' www/src/config.js
   sed -i '' -e 's/REDIRECT_URL/'"${REDIRECT_URL//\//\\/}"'/g' www/src/config.js
 else
   sed -i -e 's/AWS_USER_POOLS_WEB_CLIENT_ID/'"$AWS_USER_POOLS_WEB_CLIENT_ID"'/g' www/src/config.js
   sed -i -e 's/API_BASE_URL/'"${API_BASE_URL//\//\\/}"'/g' www/src/config.js
-  sed -i -e 's/{StageNameParam}/'"$STAGE_NAME_PARAM"'/g' www/src/config.js
+  sed -i -e 's/{APIGatewayStageName}/'"$STAGE_NAME_PARAM"'/g' www/src/config.js
   sed -i -e 's/COGNITO_HOSTED_DOMAIN/'"$COGNITO_HOSTED_DOMAIN"'/g' www/src/config.js
   sed -i -e 's/REDIRECT_URL/'"${REDIRECT_URL//\//\\/}"'/g' www/src/config.js
 fi
+
+git checkout "amp-build"
+[ $? -ne 0 ] && echo "Can not checkout amp-buid branch." && exit 1;
 
 git add www/src/config.js
 git commit -m 'Frontend config update'
