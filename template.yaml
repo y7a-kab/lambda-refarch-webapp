@@ -13,6 +13,8 @@ Globals:
     Tags:
       Application: serverless-web-app
   Api:
+    # fix issue 191 see: https://github.com/aws/serverless-application-model/issues/191
+    OpenApiVersion: '3.0.1'
     Auth:
       UsagePlan:
         UsagePlanName: DailyUsagePlan
@@ -31,7 +33,7 @@ Parameters:
   #   Type: String
   #   Default: v1
   # for API URL
-  StageNameParam:
+  APIGatewayStageName:
     Type: String
     Default: dev
   # for Cognito User Pool Domain name
@@ -39,16 +41,16 @@ Parameters:
     Type: String
     Default: todoapp
   # For Amplify Console frontend hosting
-  Repository:
+  RepositoryURL:
     Type: String
     Description: GitHub Repository URL
-  Branch:
+  BranchNameForAmplifyApp:
     Type: String
-    Description: GitHub Branch
-    Default: master
-  OauthToken:
+    Description: Branch Name for Amplify App
+    Default: amp-build
+  RepositoryOauthToken:
     Type: String
-    Description: GitHub Repository URL
+    Description: Oauth Token fot GitHub Repository
     NoEcho: true
 
 Resources:
@@ -95,7 +97,7 @@ Resources:
       LoggingLevel: INFO
     Properties:
       Name: TodoApi
-      StageName: !Ref StageNameParam
+      StageName: !Ref APIGatewayStageName
       TracingEnabled: true
       # Move under Properties
       AccessLogSetting:
@@ -311,9 +313,9 @@ Resources:
     Type: "AWS::Amplify::App"
     Properties:
       Name: TodoApp
-      Repository: !Ref Repository
+      Repository: !Ref RepositoryURL
       Description: Todo example app
-      OauthToken: !Ref OauthToken
+      OauthToken: !Ref RepositoryOauthToken
       BuildSpec: |-
         version: 0.1
         frontend:
@@ -334,7 +336,7 @@ Resources:
   AmplifyBranch:
     Type: AWS::Amplify::Branch
     Properties:
-      BranchName: !Ref Branch
+      BranchName: !Ref BranchNameForAmplifyApp
       AppId: !GetAtt AmplifyApp.AppId
       Description: Amplify Console Branch
       EnableAutoBuild: true
@@ -342,7 +344,7 @@ Resources:
         - Key: Name
           Value: todo-amplify-console
         - Key: Branch
-          Value: !Ref Branch
+          Value: !Ref BranchNameForAmplifyApp
   # Cognito User Pool
   TodoUserPool:
     Type: AWS::Cognito::UserPool
@@ -385,7 +387,7 @@ Outputs:
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   TodoFunctionApi:
     Description: API Gateway endpoint URL for stage
-    Value: !Sub "https://${TodoApi}.execute-api.${AWS::Region}.amazonaws.com/{StageNameParam}"
+    Value: !Sub "https://${TodoApi}.execute-api.${AWS::Region}.amazonaws.com/{APIGatewayStageName}"
   CognitoID:
     Description: The Cognito UserPool ID
     Value: !Ref TodoUserPool
