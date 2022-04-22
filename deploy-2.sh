@@ -9,7 +9,11 @@ set -x
 
 # export AWS_COGNITO_REGION=$AWS_DEFAULT_REGION
 
-[ -z "$STACK_NAME" ] && echo "Please specify STACK_NAME environment variable" && exit 1;
+# [ -z "$STACK_NAME" ] && echo "Please specify STACK_NAME environment variable" && exit 1;
+if [ -z "$STACK_NAME" ]; then
+    export STACK_NAME=$(basename $(cd $(dirname $0); pwd))
+    echo "CloudFormation Default Stack Name: ${STACK_NAME}"
+fi
 
 export AWS_USER_POOLS_WEB_CLIENT_ID=`aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='CognitoClientID'].OutputValue" --output text`
 [ -z "$AWS_USER_POOLS_WEB_CLIENT_ID" ] && echo "Can not retrive CognitoClientID." && exit 1;
