@@ -4,14 +4,6 @@ Description: "Sample todo serverless web application"
   
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
-  Function:
-    Runtime: nodejs12.x
-    Timeout: 60 
-    Tracing: Active
-    # From Lambda Power Tuner - https://lambda-power-tuning.show/#gAAAAQACAAQACMAL;Fu+DQkrxg0JplAJBPCnQQBhL0EDm+NlA;m1ZfNJtW3zSbVl81m1bfNZtWXzaaA6Q2
-    MemorySize: 512
-    Tags:
-      Application: serverless-web-app
   Api:
     # fix issue 191 see: https://github.com/aws/serverless-application-model/issues/191
     OpenApiVersion: '3.0.1'
@@ -26,20 +18,24 @@ Globals:
         Throttle:
           BurstLimit: 100
           RateLimit: 50
+  Function:
+    Runtime: nodejs12.x
+    Timeout: 60
+    Tracing: Active
+    # From Lambda Power Tuner - https://lambda-power-tuning.show/#gAAAAQACAAQACMAL;Fu+DQkrxg0JplAJBPCnQQBhL0EDm+NlA;m1ZfNJtW3zSbVl81m1bfNZtWXzaaA6Q2
+    MemorySize: 512
+    Tags:
+      Application: serverless-web-app
 
 Parameters:
-  # # for API URL, まったく使われていない・・・
+  # # for API URL, VersionParam はまったく使われていない・・・
   # VersionParam:
   #   Type: String
   #   Default: v1
   # for API URL
-  APIGatewayStageName:
+  StageName:
     Type: String
     Default: dev
-  # for Cognito User Pool Domain name
-  CognitoDomainName:
-    Type: String
-    Default: todoapp
   # For Amplify Console frontend hosting
   RepositoryURL:
     Type: String
@@ -52,6 +48,10 @@ Parameters:
     Type: String
     Description: Oauth Token fot GitHub Repository
     NoEcho: true
+  # for Cognito User Pool Domain name
+  CognitoDomainName:
+    Type: String
+    Default: todoapp
 
 Resources:
   # API Gateway to push execution and access logs to CloudWatch logs role
@@ -60,7 +60,7 @@ Resources:
   # https://docs.aws.amazon.com/ja_jp/prescriptive-guidance/latest/patterns/automate-deployment-of-nested-applications-using-aws-sam.html
   # https://serverless-observability.workshop.aws/en/050_logging/logging-producers/api_logs.html
   ApiGatewayPushToCloudWatchLogsRole:
-    Type: "AWS::IAM::Role"
+    Type: AWS::IAM::Role
     Properties:
       Description: "Push logs to CloudWatch logs from API Gateway"
       AssumeRolePolicyDocument:
@@ -73,17 +73,18 @@ Resources:
             Action: "sts:AssumeRole"
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
-  ApiGatewayAccount:
-    Type: 'AWS::ApiGateway::Account'
-    Properties:
-      CloudWatchRoleArn: !GetAtt ApiGatewayPushToCloudWatchLogsRole.Arn
   # API Gateway Access Log Group
   ApiAccessLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/apigateway/AccessLog-${TodoApi}
       RetentionInDays: 365
-  # API Gateway
+  # API Gateway Account
+  ApiGatewayAccount:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn: !GetAtt ApiGatewayPushToCloudWatchLogsRole.Arn
+  # API Gateway API
   TodoApi:
     Type: AWS::Serverless::Api
     DependsOn:
@@ -97,7 +98,7 @@ Resources:
       LoggingLevel: INFO
     Properties:
       Name: TodoApi
-      StageName: !Ref APIGatewayStageName
+      StageName: !Ref StageName
       TracingEnabled: true
       # Move under Properties
       AccessLogSetting:
@@ -117,18 +118,18 @@ Resources:
     Properties:
       TableName: !Join ['-', [todo-table, !Ref AWS::StackName]]
       KeySchema:
-          - AttributeName: cognito-username
-            KeyType: HASH
-          - AttributeName: id
-            KeyType: RANGE
+        - AttributeName: cognito-username
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
       AttributeDefinitions:
-          - AttributeName: cognito-username
-            AttributeType: S
-          - AttributeName: id
-            AttributeType: S
+        - AttributeName: cognito-username
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
       ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5                  
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5                  
       SSESpecification:
         SSEEnabled: true
   # Functions
@@ -186,31 +187,31 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
   CompleteTodoFunction:
-      Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-      Properties:
-        CodeUri: todo-src/completeTodo/
-        Handler: app.completeToDoItem
-        Tracing: Active
-      # see https://docs.aws.amazon.com/ja_jp/serverless-application-model/latest/developerguide/serverless-policy-templates.html
-        Policies:
-          - DynamoDBCrudPolicy:
-              TableName: !Ref TodoTable
-          - CloudWatchPutMetricPolicy: {}
-        Environment:
-          Variables:
-            TABLE_NAME: !Ref TodoTable
-            AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
-            ENDPOINT_OVERRIDE: ""
-            SAM_LOCAL_COGNITO_USERNAME: ""
-        Events:
-          CompleteItem:
-            Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-            Properties:
-              Path: /item/{id}/done
-              Method: post
-              RestApiId: !Ref TodoApi
-              Auth:
-                Authorizer: CognitoAuthorizer
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: todo-src/completeTodo/
+      Handler: app.completeToDoItem
+      Tracing: Active
+    # see https://docs.aws.amazon.com/ja_jp/serverless-application-model/latest/developerguide/serverless-policy-templates.html
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TodoTable
+        - CloudWatchPutMetricPolicy: {}
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TodoTable
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+          ENDPOINT_OVERRIDE: ""
+          SAM_LOCAL_COGNITO_USERNAME: ""
+      Events:
+        CompleteItem:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /item/{id}/done
+            Method: post
+            RestApiId: !Ref TodoApi
+            Auth:
+              Authorizer: CognitoAuthorizer
   AddTodoFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -238,30 +239,30 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
   UpdateTodoFunction:
-      Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-      Properties:
-        CodeUri: todo-src/updateTodo/
-        Handler: app.updateToDoItem
-        Tracing: Active
-      # see https://docs.aws.amazon.com/ja_jp/serverless-application-model/latest/developerguide/serverless-policy-templates.html
-        Policies:
-          - DynamoDBCrudPolicy:
-              TableName: !Ref TodoTable
-          - CloudWatchPutMetricPolicy: {}
-        Environment:
-          Variables:
-            TABLE_NAME: !Ref TodoTable
-            AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
-            SAM_LOCAL_COGNITO_USERNAME: ""
-        Events:
-          UpdateItem:
-            Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-            Properties:
-              Path: /item/{id}
-              Method: PUT
-              RestApiId: !Ref TodoApi
-              Auth:
-                Authorizer: CognitoAuthorizer
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: todo-src/updateTodo/
+      Handler: app.updateToDoItem
+      Tracing: Active
+    # see https://docs.aws.amazon.com/ja_jp/serverless-application-model/latest/developerguide/serverless-policy-templates.html
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TodoTable
+        - CloudWatchPutMetricPolicy: {}
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TodoTable
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+          SAM_LOCAL_COGNITO_USERNAME: ""
+      Events:
+        UpdateItem:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /item/{id}
+            Method: PUT
+            RestApiId: !Ref TodoApi
+            Auth:
+              Authorizer: CognitoAuthorizer
   DeleteTodoFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -353,9 +354,9 @@ Resources:
         AllowAdminCreateUserOnly: false
       UserPoolName: TodoUsers
       UsernameAttributes:
-      - email
+        - email
       AutoVerifiedAttributes:
-      - email
+        - email
       Policies:
         PasswordPolicy:
           MinimumLength: 6
@@ -374,7 +375,7 @@ Resources:
       SupportedIdentityProviders: ['COGNITO']
       AllowedOAuthScopes: ['phone', 'email', 'openid']
       ExplicitAuthFlows:
-      - USER_PASSWORD_AUTH
+        - USER_PASSWORD_AUTH
   TodoDomain:
     Type: AWS::Cognito::UserPoolDomain
     Properties: 
@@ -385,9 +386,11 @@ Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  TodoFunctionApi:
+  TodoApiUrl:
     Description: API Gateway endpoint URL for stage
-    Value: !Sub "https://${TodoApi}.execute-api.${AWS::Region}.amazonaws.com/{APIGatewayStageName}"
+    Value: !Sub "https://${TodoApi}.execute-api.${AWS::Region}.amazonaws.com/{StageName}"
+  AmplifyURL:
+    Value: !Join ['', ['https://', !GetAtt AmplifyBranch.BranchName, '.', !GetAtt AmplifyApp.DefaultDomain]]
   CognitoID:
     Description: The Cognito UserPool ID
     Value: !Ref TodoUserPool
@@ -397,5 +400,3 @@ Outputs:
   CognitoDomainName:
     Description: The Cognito Hosted UI Domain Name
     Value: !Join ['', [!Ref CognitoDomainName, '-', !Ref AWS::StackName, '.auth.', !Ref AWS::Region, '.amazoncognito.com']]
-  AmplifyURL:
-    Value: !Join ['', ['https://', !GetAtt AmplifyBranch.BranchName, '.', !GetAtt AmplifyApp.DefaultDomain]]
