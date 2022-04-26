@@ -2,7 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: "Sample todo serverless web application"
   
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Api:
     # fix issue 191 see: https://github.com/aws/serverless-application-model/issues/191
@@ -55,8 +54,7 @@ Parameters:
 
 Resources:
   # API Gateway to push execution and access logs to CloudWatch logs role
-  # See below. But please note that MethodSettings of AWS::Serverless::API 
-  # should be written directly under API, not under Properties.
+  # See below.
   # https://docs.aws.amazon.com/ja_jp/prescriptive-guidance/latest/patterns/automate-deployment-of-nested-applications-using-aws-sam.html
   # https://serverless-observability.workshop.aws/en/050_logging/logging-producers/api_logs.html
   ApiGatewayPushToCloudWatchLogsRole:
@@ -89,17 +87,22 @@ Resources:
     Type: AWS::Serverless::Api
     DependsOn:
       - ApiGatewayAccount
-    MethodSettings:
-      DataTraceEnabled: true
-      MetricsEnabled: true
-      HttpMethod: '*'
-      # ResourcePath: !Sub '/${VersionParam}/*' は効いていない
-      ResourcePath: '/*'
-      LoggingLevel: INFO
     Properties:
       Name: TodoApi
       StageName: !Ref StageName
-      TracingEnabled: true
+      MethodSettings:
+        # list of MethodSetting
+        -
+          HttpMethod: '*'
+          ResourcePath: '/*'
+          # INFO or ERROR
+          LoggingLevel: INFO
+          # Data trace log to CloudWatch Logs
+          DataTraceEnabled: false
+          # CloudWatch metrics
+          MetricsEnabled: false
+      # X-Ray tracing
+      TracingEnabled: false
       # Move under Properties
       AccessLogSetting:
         DestinationArn: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${ApiAccessLogGroup}'
